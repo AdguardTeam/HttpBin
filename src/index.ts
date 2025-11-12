@@ -25,7 +25,7 @@ import {
   checkCacheHeaders,
   setCacheControl,
   getCookies,
-  checkCookie,
+  getCookiesSelective,
   deleteCookies,
   setCookies,
 } from './cache-cookies.js';
@@ -101,7 +101,7 @@ async function handleRequest(request: Request): Promise<Response> {
     case path === '/cookies':
       return getCookies(request);
     case path.startsWith('/cookies/get'):
-      return checkCookie(request, url);
+      return getCookiesSelective(request, url);
     case path.startsWith('/cookies/delete'):
       return deleteCookies(request, url);
     case path.startsWith('/cookies/set'):

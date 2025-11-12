@@ -33,7 +33,15 @@ export function getCookies(request: Request): Response {
   });
 }
 
-export function checkCookie(request: Request, url: URL): Response {
+/**
+ * Returns the values of specific cookies requested via query parameters.
+ *
+ * @param request The incoming HTTP request containing cookies.
+ * @param url The URL object containing query parameters with cookie names to retrieve.
+ *
+ * @returns Response with JSON object containing requested cookie name-value pairs.
+ */
+export function getCookiesSelective(request: Request, url: URL): Response {
   const requestedCookies = Array.from(url.searchParams.keys());
 
   if (requestedCookies.length === 0) {

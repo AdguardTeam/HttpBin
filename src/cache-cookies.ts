@@ -35,7 +35,7 @@ export function getCookies(request: Request): Response {
 
 export function checkCookie(request: Request, url: URL): Response {
   const requestedCookies = Array.from(url.searchParams.keys());
-  
+
   if (requestedCookies.length === 0) {
     return new Response(JSON.stringify({}), {
       headers: { 'Content-Type': 'application/json' },

@@ -51,6 +51,7 @@ This project is written in TypeScript and uses:
 - [/cache/:n](https://httpbin.agrd.workers.dev/cache/60) - Sets a Cache-Control header for n seconds.
 - [/cookies](https://httpbin.agrd.workers.dev/cookies) - Returns cookie data.
 - [/cookies/set?name=value](https://httpbin.agrd.workers.dev/cookies/set?k1=v1&k2=v2) - Sets one or more simple cookies.
+- [/cookies/get?name](https://httpbin.agrd.workers.dev/cookies/get?k1) - Gets one or more simple cookies.
 - [/cookies/delete?name](https://httpbin.agrd.workers.dev/cookies/delete?k1=&k2=) - Deletes one or more simple cookies.
 - [/delay/:n](https://httpbin.agrd.workers.dev/delay/5) - Delays responding for min(n, 10) seconds.
 - [/delete](https://httpbin.agrd.workers.dev/delete) - Returns request data. Allows only DELETE requests.

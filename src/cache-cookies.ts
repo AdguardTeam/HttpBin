@@ -33,6 +33,38 @@ export function getCookies(request: Request): Response {
   });
 }
 
+export function checkCookie(request: Request, url: URL): Response {
+  const requestedCookies = Array.from(url.searchParams.keys());
+  
+  if (requestedCookies.length === 0) {
+    return new Response(JSON.stringify({}), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const cookies = request.headers.get('Cookie');
+  const cookiesMap: Record<string, string> = {};
+
+  if (cookies) {
+    const cookieEntries: Record<string, string> = {};
+    cookies.split(';').forEach((cookie) => {
+      const [name, value] = cookie.trim().split('=');
+      cookieEntries[name] = decodeURIComponent(value || '');
+    });
+
+    // Only include requested cookies
+    requestedCookies.forEach((cookieName) => {
+      if (cookieName in cookieEntries) {
+        cookiesMap[cookieName] = cookieEntries[cookieName];
+      }
+    });
+  }
+
+  return new Response(JSON.stringify(cookiesMap), {
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 export function deleteCookies(request: Request, url: URL): Response {
   const searchParams = url.searchParams;
   const cookiesToDelete: string[] = [];

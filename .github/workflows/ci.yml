@@ -1,0 +1,37 @@
+name: CI
+
+description: >-
+  Lints, tests, and builds the worker via Docker. Runs on every pull request.
+  Pushes to master are covered by deploy.yml, which runs the same validation
+  before deploying — CI never deploys.
+
+on:
+  pull_request:
+
+# Cancel superseded CI runs for the same ref. Only validation runs here (no
+# deploy), so cancelling an in-progress run mid-way is safe.
+concurrency:
+  group: ci-ext-httpbin-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only by default: CI only validates; it never deploys or writes to the repo.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint, test, build
+    runs-on: team-extensions
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Isolate the BuildKit npm cache per PR (untrusted, contributor code) so
+      # one PR can't poison the cache another PR or a trusted master build reads.
+      - name: Lint, test, and build via Docker
+        run: |
+          DOCKER_BUILDKIT=1 docker build --progress plain \
+            --target test-output \
+            --build-arg "CACHE_SCOPE=pr-${{ github.event.pull_request.number }}" \
+            .

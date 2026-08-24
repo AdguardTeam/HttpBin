@@ -5,6 +5,11 @@ service.
 
 Available on `https://httpbin.agrd.workers.dev/`.
 
+> **Note:** This project is developed in
+> [AdGuardSoftwareLimited/ext-httpbin](https://github.com/AdGuardSoftwareLimited/ext-httpbin).
+> The [AdguardTeam/HttpBin](https://github.com/AdguardTeam/HttpBin)
+> repository is a public mirror.
+
 - Ideas for methods: <https://httpbingo.org/>.
 - Code was mostly written by ChatGPT.
 

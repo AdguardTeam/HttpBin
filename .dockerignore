@@ -1,0 +1,32 @@
+# Version control
+.git
+
+# IDE and editor files
+.idea
+.vscode
+.DS_Store
+
+# Build caches
+.eslintcache
+
+# Build outputs
+build/
+dist/
+
+# Dependencies
+node_modules/
+
+# Dockerfile is passed explicitly via --file; excluding it here just keeps
+# it out of the build context (avoids cache busting on Dockerfile edits).
+Dockerfile*
+*.log
+
+# Secrets / local env — never bake into the image via `COPY . /app`
+.env
+.env.*
+
+# GitHub workflows
+.github/
+
+# Test coverage
+coverage/

@@ -16,7 +16,7 @@ dist/
 # Dependencies
 node_modules/
 
-# Dockerfile is passed explicitly via --file; excluding it here just keeps
+# BuildKit reads the Dockerfile client-side, so excluding it here just keeps
 # it out of the build context (avoids cache busting on Dockerfile edits).
 Dockerfile*
 *.log

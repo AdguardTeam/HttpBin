@@ -30,7 +30,9 @@ jobs:
   notify-failure:
     name: Notify failure
     needs: [mirror]
-    if: failure()
+    # failure() alone would miss a cancelled mirror (hung runner, manual
+    # cancel) — exactly the silent-stale case this job exists to catch.
+    if: always() && (needs.mirror.result == 'failure' || needs.mirror.result == 'cancelled')
     runs-on: team-extensions
     timeout-minutes: 5
     # Slack action only curls an internal endpoint; no token scope needed.

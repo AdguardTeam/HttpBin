@@ -25,6 +25,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # Keep in sync with the build step in deploy.yml (differs only in
+      # --target/--output).
       - name: Lint, test, and build via Docker
         run: |
           DOCKER_BUILDKIT=1 docker build --progress plain \

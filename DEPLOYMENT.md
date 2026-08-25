@@ -44,7 +44,8 @@ Every push to `master` triggers **`deploy.yml`**, which:
 2. Fetches the Cloudflare credentials from Vault (`ci-secrets/ext-httpbin`)
    via GitHub OIDC.
 3. Deploys the artifact with `wrangler deploy --route "httpbin.agrd.dev/*"`,
-   using the wrangler version pinned in `package.json` (`devDependencies`).
+   using the wrangler version resolved from `package-lock.json` (the
+   `devDependencies` entry is an exact pin and matches it).
 4. Posts a Slack notification to `#adguard-extension-vcs` (success or
    failure).
 
@@ -103,10 +104,12 @@ only from `master` (see [Deploy Pipeline](#deploy-pipeline)).
 | `cloudflare_api_token`  | Vault (`ci-secrets/ext-httpbin`) | Wrangler deploy token |
 | `cloudflare_account_id` | Vault (`ci-secrets/ext-httpbin`) | Cloudflare account ID |
 
-Cloudflare credentials live in Vault, not as GitHub repository secrets. A
-`fetch-cloudflare-secrets` job authenticates to Vault via GitHub OIDC (JWT,
-role `ext-httpbin`) and passes the values as the `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID` env vars to the `wrangler deploy` step.
+Cloudflare credentials live in Vault, not as GitHub repository secrets. The
+`deploy` job authenticates to Vault via GitHub OIDC (JWT, role `ext-httpbin`)
+and passes the values as the `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` env vars to the `wrangler deploy` step. The fetch
+happens inside the deploy job itself, so the credentials never leave the job
+(no job outputs, which would persist in the Actions backend).
 
 The Vault endpoint itself is configured through a repository/organization
 variable:

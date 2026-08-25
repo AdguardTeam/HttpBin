@@ -27,6 +27,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # Keep in sync with the validation build in ci.yml (differs only in
+      # --target/--output).
       - name: Lint, test, and build via Docker
         run: |
           DOCKER_BUILDKIT=1 docker build --progress plain \
@@ -35,27 +37,41 @@ jobs:
             .
 
       - name: Upload worker artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v8
         with:
           name: worker
           path: dist
           # Only consumed by the deploy job seconds later.
           retention-days: 1
 
-  fetch-cloudflare-secrets:
-    name: Fetch Cloudflare secrets from Vault
-    needs: build
+  deploy:
+    name: Deploy to Cloudflare Workers
+    needs: [build]
+    # workflow_dispatch can run this workflow from any branch — only master
+    # may reach prod (the old Bamboo plan was master-only too).
+    if: github.ref == 'refs/heads/master'
     runs-on: team-extensions
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
-      # contents: read — no repo writes
+      # contents: read — checkout (wrangler.toml, package-lock.json)
+      # actions: read — required by actions/download-artifact to fetch the
+      # artifact via the Actions REST API
       # id-token: write — Vault JWT/OIDC auth for Cloudflare credentials
       contents: read
+      actions: read
       id-token: write
-    outputs:
-      cloudflare_api_token: ${{ steps.vault.outputs.cloudflare_api_token }}
-      cloudflare_account_id: ${{ steps.vault.outputs.cloudflare_account_id }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download worker artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: worker
+          path: dist
+
+      # Fetched inside the deploy job so the credentials never leave it — no
+      # job outputs, which would persist in the Actions backend.
       - name: Fetch Cloudflare credentials from Vault
         id: vault
         uses: hashicorp/vault-action@v4
@@ -68,46 +84,35 @@ jobs:
             secret/data/ci-secrets/ext-httpbin cloudflare_api_token | cloudflare_api_token ;
             secret/data/ci-secrets/ext-httpbin cloudflare_account_id | cloudflare_account_id ;
 
-  deploy:
-    name: Deploy to Cloudflare Workers
-    needs: [build, fetch-cloudflare-secrets]
-    runs-on: team-extensions
-    timeout-minutes: 10
-    permissions:
-      # contents: read — checkout (wrangler.toml, package.json)
-      # actions: read — required by actions/download-artifact to fetch the
-      # artifact via the Actions REST API
-      contents: read
-      actions: read
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ needs.fetch-cloudflare-secrets.outputs.cloudflare_api_token }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ needs.fetch-cloudflare-secrets.outputs.cloudflare_account_id }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Download worker artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: worker
-          path: dist
-
-      # Single source of truth for the wrangler version: the package.json
-      # devDependency is an exact pin (no caret), so what deploys to prod is
-      # the same version the build stage just tested from the lockfile.
+      # Single source of truth for the wrangler version: the lockfile-resolved
+      # version — exactly what the build stage just tested. The package.json
+      # devDependency is an exact pin (no caret) and matches it.
       - name: Resolve wrangler version
         id: wrangler
-        run: echo "version=$(node -p "require('./package.json').devDependencies.wrangler")" >> "$GITHUB_OUTPUT"
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package-lock.json').packages['node_modules/wrangler'].version")"
+          # Must be an exact version — a range or empty value would make
+          # npx fetch "latest" instead of the tested pin.
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Unexpected wrangler version in package-lock.json: '$version'"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       # Same deploy command the Bamboo HTTPBIN plan ran. No shared reusable
       # workflow for Workers deploys exists in ext-shared-actions yet
       # (AG-57783); switch to it once one is available.
       - name: Deploy worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ steps.vault.outputs.cloudflare_api_token }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ steps.vault.outputs.cloudflare_account_id }}
         run: npx "wrangler@${{ steps.wrangler.outputs.version }}" deploy --route "httpbin.agrd.dev/*"
 
   notify:
     name: Notify Slack
-    needs: [build, fetch-cloudflare-secrets, deploy]
+    needs: [build, deploy]
     # One job for both outcomes so the channel, action version, and format
     # can't drift between success and failure notifications. The failure
     # notification replaces the old Bamboo failure webhook to jirahub.
@@ -129,11 +134,14 @@ jobs:
             <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|view run>
           color: good
 
+      # Covers cancelled as well as failure — a timed-out or manually
+      # cancelled job must not leave the deploy silently broken.
       - name: Send Slack failure notification
         if: >-
           needs.build.result == 'failure' ||
-          needs.fetch-cloudflare-secrets.result == 'failure' ||
-          needs.deploy.result == 'failure'
+          needs.build.result == 'cancelled' ||
+          needs.deploy.result == 'failure' ||
+          needs.deploy.result == 'cancelled'
         uses: AdGuardSoftwareLimited/actions/actions/slack@master
         with:
           channel: ${{ vars.SLACK_CHANNEL || '#adguard-extension-vcs' }}

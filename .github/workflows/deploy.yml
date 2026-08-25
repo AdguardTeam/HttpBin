@@ -1,13 +1,14 @@
+# Lints, tests, builds, and deploys the worker to Cloudflare Workers
+# (httpbin.agrd.dev/*) on every push to master. Replicates the old Bamboo
+# HTTPBIN plan. Pull requests are validated by ci.yml and never deploy.
 name: Deploy
-
-description: >-
-  Lints, tests, builds, and deploys the worker to Cloudflare Workers
-  (httpbin.agrd.dev/*) on every push to master. Replicates the old Bamboo
-  HTTPBIN plan. Pull requests are validated by ci.yml and never deploy.
 
 on:
   push:
     branches: [master]
+  # Manual trigger to smoke-test the deploy pipeline without a master push
+  # (everything deploy-side can otherwise only be exercised by a real deploy).
+  workflow_dispatch:
 
 # Serialize deploys: two master pushes must not race the wrangler deploy.
 concurrency:
@@ -93,8 +94,9 @@ jobs:
           name: worker
           path: dist
 
-      # Single source of truth for the wrangler pin: the package.json
-      # devDependency, so CI and manual deploys always use the same wrangler.
+      # Single source of truth for the wrangler version: the package.json
+      # devDependency is an exact pin (no caret), so what deploys to prod is
+      # the same version the build stage just tested from the lockfile.
       - name: Resolve wrangler version
         id: wrangler
         run: echo "version=$(node -p "require('./package.json').devDependencies.wrangler")" >> "$GITHUB_OUTPUT"
@@ -106,14 +108,19 @@ jobs:
         run: npx "wrangler@${{ steps.wrangler.outputs.version }}" deploy --route "httpbin.agrd.dev/*"
 
   notify:
-    name: Notify success
-    needs: [deploy]
+    name: Notify Slack
+    needs: [build, fetch-cloudflare-secrets, deploy]
+    # One job for both outcomes so the channel, action version, and format
+    # can't drift between success and failure notifications. The failure
+    # notification replaces the old Bamboo failure webhook to jirahub.
+    if: always()
     runs-on: team-extensions
     timeout-minutes: 5
     # Slack action only curls an internal endpoint; no token scope needed.
     permissions: {}
     steps:
-      - name: Send Slack notification
+      - name: Send Slack success notification
+        if: needs.deploy.result == 'success'
         uses: AdGuardSoftwareLimited/actions/actions/slack@master
         with:
           # vars.SLACK_CHANNEL centralizes the channel; falls back to the literal.
@@ -124,17 +131,11 @@ jobs:
             <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|view run>
           color: good
 
-  notify-failure:
-    name: Notify failure
-    needs: [build, fetch-cloudflare-secrets, deploy]
-    # Fires only when a deploy job actually failed (replaces the old Bamboo
-    # failure webhook to jirahub).
-    if: failure()
-    runs-on: team-extensions
-    timeout-minutes: 5
-    permissions: {}
-    steps:
       - name: Send Slack failure notification
+        if: >-
+          needs.build.result == 'failure' ||
+          needs.fetch-cloudflare-secrets.result == 'failure' ||
+          needs.deploy.result == 'failure'
         uses: AdGuardSoftwareLimited/actions/actions/slack@master
         with:
           channel: ${{ vars.SLACK_CHANNEL || '#adguard-extension-vcs' }}

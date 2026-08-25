@@ -14,24 +14,17 @@ WORKDIR /app
 # npm cache directory — set once here, no need for npm config set in every RUN
 ENV npm_config_cache=/npm-cache
 
-# CACHE_SCOPE isolates the BuildKit npm cache per trust level: untrusted
-# pull_request builds pass a different scope than trusted master builds
-# so they never share a read-write cache mount on the shared runner.
-ARG CACHE_SCOPE=default
-
 # ============================================================================
 # Stage: deps
 # Cached until package.json / package-lock.json change
 # ============================================================================
 FROM base AS deps
 
-ARG CACHE_SCOPE
-
 COPY package.json package-lock.json ./
 
 # --ignore-scripts: no lifecycle scripts are needed in CI (platform binaries
 # for esbuild / workerd come from optionalDependencies)
-RUN --mount=type=cache,target=/npm-cache,id=ext-httpbin-npm-${CACHE_SCOPE} \
+RUN --mount=type=cache,target=/npm-cache,id=ext-httpbin-npm \
     npm ci \
         --ignore-scripts \
         --prefer-offline

@@ -25,22 +25,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      # Isolate the BuildKit npm cache per PR (untrusted, contributor code) so
-      # one PR can't poison the cache another PR or a trusted master build reads.
-      # Forks get a per-fork-owner scope so fork builds can never share a cache
-      # mount with same-repo PRs or the trusted master scope — even if the PR
-      # edits this workflow file (on pull_request the workflow comes from the
-      # merge ref). Same-repo PRs are additionally gated by maintainer review.
       - name: Lint, test, and build via Docker
-        env:
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
         run: |
-          if [[ "$HEAD_REPO" == "${{ github.repository }}" ]]; then
-            scope="pr-${{ github.event.pull_request.number }}"
-          else
-            scope="fork-${{ github.event.pull_request.head.repo.owner.login }}-pr-${{ github.event.pull_request.number }}"
-          fi
           DOCKER_BUILDKIT=1 docker build --progress plain \
             --target test-output \
-            --build-arg "CACHE_SCOPE=$scope" \
             .

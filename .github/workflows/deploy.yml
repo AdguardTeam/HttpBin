@@ -27,12 +27,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      # Trusted master build — uses the trusted BuildKit cache scope.
       - name: Lint, test, and build via Docker
         run: |
           DOCKER_BUILDKIT=1 docker build --progress plain \
             --target build-output \
-            --build-arg CACHE_SCOPE=trusted \
             --output ./dist \
             .
 

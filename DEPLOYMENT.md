@@ -91,9 +91,7 @@ CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... \
 Runs on every pull request. It validates only — it never deploys:
 
 1. Checks out the code.
-2. Lints, tests, and builds inside Docker (`--target test-output`). Untrusted
-   pull-request builds use a separate BuildKit cache scope from trusted master
-   builds so one PR can't poison the cache another build reads.
+2. Lints, tests, and builds inside Docker (`--target test-output`).
 
 Deployment is intentionally **not** part of CI — the live worker is updated
 only from `master` (see [Deploy Pipeline](#deploy-pipeline)).

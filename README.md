@@ -3,7 +3,7 @@
 This is a Cloudflare Worker port of httpbin.org HTTP request & response testing
 service.
 
-Available on `https://httpbin.agrd.workers.dev/`.
+Available on `https://httpbin.agrd.dev/`.
 
 > **Note:** This project is developed in
 > [AdGuardSoftwareLimited/ext-httpbin](https://github.com/AdGuardSoftwareLimited/ext-httpbin).

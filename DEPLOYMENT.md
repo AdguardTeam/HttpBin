@@ -2,6 +2,7 @@
 
 - [Deployment — HTTPBin](#deployment--httpbin)
     - [Deployment Summary](#deployment-summary)
+    - [Initial Setup](#initial-setup)
     - [Deploy Pipeline](#deploy-pipeline)
         - [Migration from Bamboo](#migration-from-bamboo)
         - [Rollback](#rollback)
@@ -20,6 +21,19 @@
 | **Public mirror**          | `AdguardTeam/HttpBin`                            |
 | **Runner label**           | `team-extensions`                                |
 | **Slack channel**          | `#adguard-extension-vcs`                         |
+
+## Initial Setup
+
+One-time setup performed when CI/CD migrated from Bamboo to GitHub Actions
+([AG-57783](https://jira.int.agrd.dev/browse/AG-57783)):
+
+- [ ] Vault: provision `ci-secrets/ext-httpbin` (`cloudflare_api_token`,
+  `cloudflare_account_id`) and the `ext-httpbin` JWT role for GitHub OIDC.
+- [ ] Repo variables: `VAULT_URL` (org-level), optionally `SLACK_CHANNEL`.
+- [ ] `terraform-github` / `microservices`: allow workflows + PR title hashtag
+  rules (same changes as for ext-filters-tests).
+- [ ] Verify the first mirror run, then archive the Bitbucket `ADGTEST/httpbin`
+  repo.
 
 ## Deploy Pipeline
 
@@ -99,9 +113,10 @@ role `ext-httpbin`) and passes the values as the `CLOUDFLARE_API_TOKEN` and
 The Vault endpoint itself is configured through a repository/organization
 variable:
 
-| Variable    | Scope             | Description                           |
-| ----------- | ----------------- | ------------------------------------- |
-| `VAULT_URL` | repo/org variable | Base URL of the Vault server for OIDC |
+| Variable        | Scope             | Description                                     |
+| --------------- | ----------------- | ----------------------------------------------- |
+| `VAULT_URL`     | repo/org variable | Base URL of the Vault server for OIDC           |
+| `SLACK_CHANNEL` | repo/org variable | Optional. Overrides the Slack notification channel; falls back to `#adguard-extension-vcs` |
 
 **Rotation:** to rotate the Cloudflare credentials, update the values under
 `ci-secrets/ext-httpbin` in Vault — no GitHub-side change is needed, the next

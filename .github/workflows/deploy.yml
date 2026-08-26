@@ -47,9 +47,12 @@ jobs:
   deploy:
     name: Deploy to Cloudflare Workers
     needs: [build]
-    # workflow_dispatch can run this workflow from any branch — only master
-    # may reach prod (the old Bamboo plan was master-only too).
+    # Production deploy environment: requires an approved review from the
+    # extensions team before publishing (defined in terraform-github). Prevents
+    # a merge from releasing to httpbin.agrd.dev without approval. The env is
+    # also branch-restricted to master, matching the guard below.
     if: github.ref == 'refs/heads/master'
+    environment: production
     runs-on: team-extensions
     timeout-minutes: 10
     permissions:

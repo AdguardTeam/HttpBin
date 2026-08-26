@@ -17,7 +17,7 @@
 | -------------------------- | ------------------------------------------------ |
 | **Live URL**               | <https://httpbin.agrd.dev>                       |
 | **Cloudflare Worker**      | `httpbin` (route `httpbin.agrd.dev/*`)           |
-| **Deploy**                 | `deploy.yml` — `wrangler deploy` on master push  |
+| **Deploy**                 | `deploy.yml` — `wrangler deploy` on master push, gated by `production` env review |
 | **Public mirror**          | `AdguardTeam/HttpBin`                            |
 | **Runner label**           | `team-extensions`                                |
 | **Slack channel**          | `#adguard-extension-vcs`                         |
@@ -48,6 +48,13 @@ Every push to `master` triggers **`deploy.yml`**, which:
    `devDependencies` entry is an exact pin and matches it).
 4. Posts a Slack notification to `#adguard-extension-vcs` (success or
    failure).
+
+The `deploy` job targets the **`production`** GitHub environment (defined in
+`terraform-github`), so a merge to `master` does **not** release immediately:
+the deploy waits for an **approved review from the extensions team**
+(`prevent_self_review` is on, so the author can't self-approve) and is
+branch-restricted to `master`. This prevents an unreviewed merge from
+auto-releasing to httpbin.agrd.dev.
 
 The deploys are serialized via a workflow-level concurrency group, so two
 master pushes never race the wrangler deploy.
@@ -84,7 +91,7 @@ CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... \
 | Workflow     | Trigger         | What it does                                   |
 | ------------ | --------------- | ---------------------------------------------- |
 | `ci.yml`     | pull_request    | Lints, tests, and builds (no deploy)           |
-| `deploy.yml` | push to master  | Lints, tests, builds, deploys, notifies Slack  |
+| `deploy.yml` | push to master  | Builds, deploys (gated by `production` env review), notifies Slack |
 | `mirror.yml` | push to master  | Mirrors code to the public repo                |
 
 ### CI build (ci.yml)

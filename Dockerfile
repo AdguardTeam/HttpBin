@@ -3,10 +3,7 @@
 # Dependencies are cached until package.json / package-lock.json change.
 # Each stage can be built independently via --target.
 
-# Pinned by digest so the build/deploy environment can't shift if the mutable
-# tag is republished between runs. To update, bump the tag and refresh the
-# digest: docker buildx imagetools inspect adguard/node-ssh:<tag>
-FROM adguard/node-ssh:22.22--0@sha256:8986e440f85ebf7e230b3cd4ff51efe5130424d4684129275fca6319ccc2d659 AS base
+FROM adguard/node-ssh:22.22--0 AS base
 SHELL ["/bin/bash", "-lc"]
 
 WORKDIR /app

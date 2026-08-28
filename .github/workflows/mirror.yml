@@ -1,0 +1,49 @@
+# Mirrors code to the public repo on every push to master.
+name: Mirror
+
+on:
+  push:
+    branches:
+      - master
+
+# `contents: read` — checkout source repo
+# `actions: write` — disable workflows in the public mirror
+# `id-token: write` — Octopass token for push to public repo
+permissions:
+  contents: read
+  actions: write
+  id-token: write
+
+jobs:
+  mirror:
+    uses: AdGuardSoftwareLimited/actions/.github/workflows/mirror.yml@master
+    with:
+      team: extensions
+      target_repo: git@github.com:AdguardTeam/HttpBin.git
+    # No secrets are passed: the shared workflow authenticates to the target
+    # repo via an Octopass token minted from the GitHub OIDC id-token, so
+    # `secrets: inherit` (all repo/org secrets) is deliberately not used.
+
+  # The mirror has no GitHub-side UI most people watch; if the push breaks
+  # (expired Octopass token, key rotation, renamed target) the public repo
+  # silently goes stale, so post a failure to Slack like deploy.yml does.
+  notify-failure:
+    name: Notify failure
+    needs: [mirror]
+    # failure() alone would miss a cancelled mirror (hung runner, manual
+    # cancel) — exactly the silent-stale case this job exists to catch.
+    if: always() && (needs.mirror.result == 'failure' || needs.mirror.result == 'cancelled')
+    runs-on: team-extensions
+    timeout-minutes: 5
+    # Slack action only curls an internal endpoint; no token scope needed.
+    permissions: {}
+    steps:
+      - name: Send Slack failure notification
+        uses: AdGuardSoftwareLimited/actions/actions/slack@master
+        with:
+          # vars.SLACK_CHANNEL centralizes the channel; falls back to the literal.
+          channel: ${{ vars.SLACK_CHANNEL || '#adguard-extension-vcs' }}
+          message: >-
+            :x: *httpbin* mirror to AdguardTeam/HttpBin failed —
+            <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|view run>
+          color: danger

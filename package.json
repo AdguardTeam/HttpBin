@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/AdguardTeam/HttpBin.git"
+    "url": "https://github.com/AdGuardSoftwareLimited/ext-httpbin.git"
   },
   "author": "AdGuard",
   "license": "MIT",
@@ -33,7 +33,7 @@
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.46.0",
     "vitest": "^3.2.4",
-    "wrangler": "^4.42.2"
+    "wrangler": "4.42.2"
   },
   "dependencies": {
     "ohttp-js": "^0.1.5"

@@ -17,7 +17,7 @@
 | -------------------------- | ------------------------------------------------ |
 | **Live URL**               | <https://httpbin.agrd.dev>                       |
 | **Cloudflare Worker**      | `httpbin` (route `httpbin.agrd.dev/*`)           |
-| **Deploy**                 | `deploy.yml` — `wrangler deploy` on master push, gated by `production` env review |
+| **Deploy**                 | `deploy.yml` — manual `workflow_dispatch` (run from `master`), gated by `production` env review |
 | **Public mirror**          | `AdguardTeam/HttpBin`                            |
 | **Runner label**           | `team-extensions`                                |
 | **Slack channel**          | `#adguard-extension-vcs`                         |
@@ -37,7 +37,10 @@ One-time setup performed when CI/CD migrated from Bamboo to GitHub Actions
 
 ## Deploy Pipeline
 
-Every push to `master` triggers **`deploy.yml`**, which:
+**`deploy.yml` runs manually** — the release is triggered with
+`workflow_dispatch` from the `master` branch by a maintainer (mirroring the
+manual release flow used by e.g. ext-aglint). A merge/push to `master` does
+**not** auto-deploy. The workflow:
 
 1. Lints, tests, and builds the worker in Docker (`--target build-output`)
    and uploads `dist/` as a build artifact.
@@ -49,35 +52,39 @@ Every push to `master` triggers **`deploy.yml`**, which:
 4. Posts a Slack notification to `#adguard-extension-vcs` (success or
    failure).
 
-The `deploy` job targets the **`production`** GitHub environment (defined in
-`terraform-github`), so a merge to `master` does **not** release immediately:
-the deploy waits for an **approved review from the extensions team**
-(`prevent_self_review` is on, so the author can't self-approve) and is
-branch-restricted to `master`. This prevents an unreviewed merge from
-auto-releasing to httpbin.agrd.dev.
+Because the `deploy` job targets the **`production`** GitHub environment
+(defined in `terraform-github`), every release waits for an **approved review
+from the extensions team** (`prevent_self_review` is on, so the author can't
+self-approve) and is branch-restricted to `master`. A manual `workflow_dispatch`
+can be run from any branch, so the job also guards on `github.ref ==
+'refs/heads/master'` — only a dispatch from `master` deploys. This prevents
+an unapproved or off-branch run from publishing to httpbin.agrd.dev.
 
 The deploys are serialized via a workflow-level concurrency group, so two
-master pushes never race the wrangler deploy.
+manual releases never race the wrangler deploy.
 
 ### Migration from Bamboo
 
 The old Bamboo `HTTPBIN` plan (`npm install` → `lint` → `test` → `build` →
 `wrangler deploy`, master-only, failure webhook to jirahub) is replaced by:
 
-- `deploy.yml` — the same pipeline on pushes to `master`; the Slack
-  notification replaces the jirahub failure webhook.
+- `deploy.yml` — the same pipeline, now run manually (`workflow_dispatch` on
+  `master`) instead of on every push; the Slack notification replaces the
+  jirahub failure webhook.
 - `ci.yml` — lint/test/build validation for pull requests (Bamboo ran no
   stages on non-master branches; PRs are now validated instead).
 - `mirror.yml` — mirrors `master` to the public repo on every push.
 
-There is no versioning/release pipeline: the worker is deployed continuously
-from `master`, exactly as the Bamboo plan did.
+There is no versioning/release pipeline (no changelog, tags, or npm release):
+the worker is released by a maintainer manually running `deploy.yml` from
+`master`, rather than deploying continuously from every push as Bamboo did.
 
 ### Rollback
 
 To roll back, revert the offending commit on `master` (or reset `master` to a
-known-good commit) and push — the deploy workflow will publish that state.
-Alternatively, run the deploy manually from a known-good commit:
+known-good commit), push, and then manually run `deploy.yml` from `master` —
+the deploy workflow will publish that state. To deploy straight from a
+known-good commit without waiting for the pipeline:
 
 ```bash
 npm ci
@@ -91,7 +98,7 @@ CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... \
 | Workflow     | Trigger         | What it does                                   |
 | ------------ | --------------- | ---------------------------------------------- |
 | `ci.yml`     | pull_request    | Lints, tests, and builds (no deploy)           |
-| `deploy.yml` | push to master  | Builds, deploys (gated by `production` env review), notifies Slack |
+| `deploy.yml` | manual `workflow_dispatch` on `master` | Builds, deploys (gated by `production` env review), notifies Slack |
 | `mirror.yml` | push to master  | Mirrors code to the public repo                |
 
 ### CI build (ci.yml)
@@ -102,7 +109,8 @@ Runs on every pull request. It validates only — it never deploys:
 2. Lints, tests, and builds inside Docker (`--target test-output`).
 
 Deployment is intentionally **not** part of CI — the live worker is updated
-only from `master` (see [Deploy Pipeline](#deploy-pipeline)).
+only by a maintainer manually running `deploy.yml` from `master` (see
+[Deploy Pipeline](#deploy-pipeline)).
 
 ## Environment Variables and Secrets
 

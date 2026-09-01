@@ -1,16 +1,15 @@
 # Lints, tests, builds, and deploys the worker to Cloudflare Workers
-# (httpbin.agrd.dev/*) on every push to master. Replicates the old Bamboo
-# HTTPBIN plan. Pull requests are validated by ci.yml and never deploy.
+# (httpbin.agrd.dev/*). The release is triggered MANUALLY: a maintainer runs
+# this workflow (workflow_dispatch) from the master branch. Merging to master
+# does NOT auto-deploy — like ext-aglint's release pipeline, publishing is an
+# explicit, review-gated action. Pull requests are validated by ci.yml and
+# never deploy.
 name: Deploy
 
 on:
-  push:
-    branches: [master]
-  # Manual trigger to smoke-test the deploy pipeline without a master push
-  # (everything deploy-side can otherwise only be exercised by a real deploy).
   workflow_dispatch:
 
-# Serialize deploys: two master pushes must not race the wrangler deploy.
+# Serialize deploys: two manual releases must not race the wrangler deploy.
 concurrency:
   group: deploy-ext-httpbin
   cancel-in-progress: false
@@ -49,8 +48,10 @@ jobs:
     needs: [build]
     # Production deploy environment: requires an approved review from the
     # extensions team before publishing (defined in terraform-github). Prevents
-    # a merge from releasing to httpbin.agrd.dev without approval. The env is
-    # also branch-restricted to master, matching the guard below.
+    # a manual release from reaching httpbin.agrd.dev without approval. The
+    # env is also branch-restricted to master, matching the guard below:
+    # workflow_dispatch can be run from any branch, but only a run from the
+    # master ref actually deploys.
     if: github.ref == 'refs/heads/master'
     environment: production
     runs-on: team-extensions

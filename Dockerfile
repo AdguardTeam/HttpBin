@@ -3,7 +3,7 @@
 # Dependencies are cached until package.json / package-lock.json change.
 # Each stage can be built independently via --target.
 
-FROM adguard/node-ssh:22.22--0 AS base
+FROM adguard/node-ssh:22.23--0 AS base
 SHELL ["/bin/bash", "-lc"]
 
 WORKDIR /app

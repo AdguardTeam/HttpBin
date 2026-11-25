@@ -19,6 +19,9 @@
   },
   "author": "AdGuard",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.23.5"
+  },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.9.12",
     "@cloudflare/workers-types": "^4.20241127.0",
